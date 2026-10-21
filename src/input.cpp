@@ -104,9 +104,10 @@ void report_error(std::ostream& errors, std::size_t command_number, const char* 
 } //namespace detail
 
 [[nodiscard]] Read_Status read_command(std::istream& stream,
-                                             Parsed_Command& output,
-                                             std::ostream& errors,
-                                             std::size_t command_number) noexcept //возвращаем output
+                                       Parsed_Command& output,
+                                       std::ostream& errors,
+                                       std::size_t command_number
+                                       ) noexcept //возвращаем output
 {
     try 
     {

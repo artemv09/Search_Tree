@@ -80,7 +80,7 @@ inline void render_svg(const std::filesystem::path& dot_path,
 template <typename Node>
 void write_dot(const Node* root, std::ostream& out)
 {
-    using Link_Type = decltype(root->left_type_);
+    using Link_Type = decltype(root -> left_type_);
 
     std::vector<const Node*> nodes;
     std::unordered_map<const Node*, std::size_t> ids;
@@ -125,8 +125,8 @@ void write_dot(const Node* root, std::ostream& out)
             << "<TR><TD COLSPAN=\"2\" BGCOLOR=\""
             << (node == root ? "#dbeafe" : "#f3f4f6") << "\">"
             << detail::escape_html(value.str()) << "</TD></TR>"
-            << "<TR><TD COLSPAN=\"2\">h=" << node->height_
-            << ", size=" << node->subtree_size_ << "</TD></TR>"
+            << "<TR><TD>h=" << node->height_
+            << "</TD><TD>size=" << node->subtree_size_ << "</TD></TR>"
             << "<TR><TD PORT=\"l\">L" << (node->left_ ? "" : "=nullptr") << "</TD>"
             << "<TD PORT=\"r\">R" << (node->right_ ? "" : "=nullptr")
             << "</TD></TR></TABLE>>];\n";
@@ -188,6 +188,129 @@ std::filesystem::path draw_tree(
     return svg_path;
 }
 
-} //namespace search_tools::graphiviz
+template <typename Node>
+void write_b_tree_dot(const Node* root, std::ostream& out)
+{
+    std::vector<const Node*> nodes;
+    std::unordered_map<const Node*, std::size_t> ids;
+    const auto discover = [&](const Node* node)
+    {
+        if (node != nullptr && ids.emplace(node, nodes.size()).second)
+        {
+            nodes.push_back(node);
+        }
+    };
+
+    discover(root);
+    for (std::size_t i = 0; i < nodes.size(); ++i)
+    {
+        const Node* node = nodes[i];
+        for (const auto& child : node->children_)
+        {
+            discover(child.get());
+        }
+    }
+
+    std::vector<std::vector<std::string>> values(nodes.size());
+    std::size_t cell_width = 56;
+    for (std::size_t i = 0; i < nodes.size(); ++i)
+    {
+        for (const auto& key : nodes[i]->value_)
+        {
+            std::ostringstream value;
+            value << key;
+            if (!value)
+            {
+                throw std::runtime_error("Не удалось вывести ключ узла B-дерева");
+            }
+            values[i].push_back(value.str());
+            const std::size_t width = values[i].back().size() * 10 + 24;
+            if (cell_width < width)
+            {
+                cell_width = width;
+            }
+        }
+    }
+
+    out << "digraph BTree {\n"
+           "  graph [rankdir=TB, ordering=out, nodesep=0.45, ranksep=0.75,\n"
+           "         bgcolor=\"white\", pad=0.25, splines=polyline];\n"
+           "  node [shape=plain, fontname=\"DejaVu Sans\", fontsize=14];\n"
+           "  edge [arrowsize=0.7, color=\"#111827\", penwidth=1.5];\n";
+
+    if (root == nullptr)
+    {
+        out << "  empty [shape=box, label=\"root = nullptr\"];\n";
+    }
+
+    for (std::size_t i = 0; i < nodes.size(); ++i)
+    {
+        const Node* node = nodes[i];
+        out << "  n" << i << " [label=<<TABLE BORDER=\"1\" CELLBORDER=\"1\" CELLSPACING=\"0\">"
+            << "<TR><TD COLSPAN=\"" << (node->value_.empty() ? 1 : node->value_.size())
+            << "\" ALIGN=\"CENTER\">size=" << node->subtree_size_ << "</TD></TR><TR>";
+
+        if (node->value_.empty())
+        {
+            out << "<TD PORT=\"c0\" WIDTH=\"" << cell_width << "\" HEIGHT=\"24\">&#160;</TD>";
+        }
+        for (std::size_t j = 0; j < node->value_.size(); ++j)
+        {
+            out << "<TD PORT=\"c" << j << "\" BGCOLOR=\""
+                << (node == root ? "#dbeafe" : "#f3f4f6") << "\" WIDTH=\"" << cell_width
+                << "\" HEIGHT=\"24\" FIXEDSIZE=\"TRUE\" ALIGN=\"CENTER\" VALIGN=\"MIDDLE\">"
+                << detail::escape_html(values[i][j]) << "</TD>";
+        }
+
+        out << "</TR></TABLE>>];\n";
+    }
+
+    for (std::size_t i = 0; i < nodes.size(); ++i)
+    {
+        const Node* node = nodes[i];
+        for (std::size_t j = 0; j < node->children_.size(); ++j)
+        {
+            if (node->children_[j])
+            {
+                const bool rightmost = !node->value_.empty() && j == node->value_.size();
+                out << "  n" << i << ":c" << (rightmost ? j - 1 : j)
+                    << (rightmost ? ":se -> n" : ":sw -> n")
+                    << ids.at(node->children_[j].get()) << ":n;\n";
+            }
+        }
+    }
+
+    out << "}\n";
+    if (!out)
+    {
+        throw std::runtime_error("Не удалось записать DOT B-дерева");
+    }
+}
+
+template <typename Node>
+std::filesystem::path draw_b_tree(
+    const Node* root,
+    const std::filesystem::path& output = "graphiviz/b_tree.svg")
+{
+    if (output.extension() != ".svg")
+    {
+        throw std::invalid_argument("Имя выходного файла должно оканчиваться на .svg");
+    }
+    const auto svg_path = std::filesystem::absolute(output);
+    auto dot_path = svg_path;
+    dot_path.replace_extension(".dot");
+    std::filesystem::create_directories(svg_path.parent_path());
+
+    std::ofstream dot;
+    dot.exceptions(std::ios::failbit | std::ios::badbit);
+    dot.open(dot_path);
+    write_b_tree_dot(root, dot);
+    dot.close();
+
+    detail::render_svg(dot_path, svg_path);
+    return svg_path;
+}
+
+} //namespace graphiviz
 
 #endif 

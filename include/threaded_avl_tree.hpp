@@ -471,6 +471,11 @@ template <typename Type_Val>
 template <typename Type_Val>
 [[nodiscard]] std::optional<Type_Val> AVL_Tree<Type_Val>::select(std::size_t i) const
 {
+    if(root_ == nullptr || i == 0 || i > root_ -> subtree_size_)
+    {
+        return std::nullopt;
+    }
+
     Node* min_key = root_;
     while(min_key -> left_ != nullptr)
     {
@@ -485,7 +490,7 @@ template <typename Type_Val>
         {
             min_key = min_key -> right_;
 
-            if(min_key -> left_type_ == Link_Type::Thread)
+            if (min_key -> left_type_ == Link_Type::Thread)
             {
                 count++;
             }
@@ -505,7 +510,7 @@ template <typename Type_Val>
         }
     }
 
-    if(count == i)
+    if (count == i)
     {
         return min_key -> value_;
     }

@@ -59,7 +59,7 @@ template <typename Type_Val>
         }
         case(input::Command::RangeCount):
         {
-            results << range_count(Type_Val(command.argument), Type_Val(command.right_bound))// << ' ';
+            results << range_count(Type_Val(command.argument), Type_Val(command.right_bound));// << ' ';
             break;
         }
         case(input::Command::Select):
@@ -74,7 +74,7 @@ template <typename Type_Val>
         }
         case(input::Command::CountLess):
         {
-            results << count_less(Type_Val(command.argument))// << ' ';
+            results << count_less(Type_Val(command.argument));// << ' ';
             break;
         }
         default:

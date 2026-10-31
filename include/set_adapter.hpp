@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <iterator>
 #include <cstddef>
+#include <functional>
 #include <algorithm>
 #include <optional>
 #include <limits>
@@ -20,11 +21,11 @@
 
 namespace search_tools {
 
-template <typename Type_Val>
+template <typename Type_Val, typename Compare = std::less<Type_Val>>
 class Set_Adapter
 {
     private:
-        using Set = std::set<Type_Val>;
+        using Set = std::set<Type_Val, Compare>;
         using Set_Iterator = typename Set::iterator;
 
         Set data_;
@@ -44,11 +45,11 @@ class Set_Adapter
         // Число ключей строго меньше x
         [[nodiscard]] std::size_t count_less(const Type_Val& x) const;
 
-        Set_Adapter() = default;
+        Set_Adapter(Compare comp = Compare{}) : data_(std::move(comp)) {}
 };
 
-template <typename Type_Val>
-[[nodiscard]] bool Set_Adapter<Type_Val>::execution_command(const input::Parsed_Command& command, std::ostream& results)
+template <typename Type_Val, typename Compare>
+[[nodiscard]] bool Set_Adapter<Type_Val, Compare>::execution_command(const input::Parsed_Command& command, std::ostream& results)
 {
     switch (command.type)
     {
@@ -59,8 +60,7 @@ template <typename Type_Val>
         }
         case(input::Command::RangeCount):
         {
-            results << range_count(Type_Val(command.argument), Type_Val(command.right_bound));// << ' ';
-            break;
+            results << range_count(Type_Val(command.argument), Type_Val(command.right_bound));
         }
         case(input::Command::Select):
         {
@@ -69,12 +69,12 @@ template <typename Type_Val>
             {
                 return false;
             }
-            results << *value;// << ' ';
+            results << *value;
             break;
         }
         case(input::Command::CountLess):
         {
-            results << count_less(Type_Val(command.argument));// << ' ';
+            results << count_less(Type_Val(command.argument));
             break;
         }
         default:
@@ -90,14 +90,14 @@ template <typename Type_Val>
     return true;
 }
     
-template <typename Type_Val>
-void Set_Adapter<Type_Val>::insert(Type_Val val)
+template <typename Type_Val, typename Compare>
+void Set_Adapter<Type_Val, Compare>::insert(Type_Val val)
 {
     data_.insert(std::move(val));
 }
 
-template <typename Type_Val>
-[[nodiscard]] std::size_t Set_Adapter<Type_Val>::range_count(const Type_Val& l, const Type_Val& r) const
+template <typename Type_Val, typename Compare>
+[[nodiscard]] std::size_t Set_Adapter<Type_Val, Compare>::range_count(const Type_Val& l, const Type_Val& r) const
 {
     const auto comp = data_.key_comp();
     if (comp(r, l))
@@ -112,8 +112,8 @@ template <typename Type_Val>
     return static_cast<std::size_t>(std::distance(data_.upper_bound(l), data_.upper_bound(r)));
 }
 
-template <typename Type_Val>
-[[nodiscard]] std::optional<Type_Val> Set_Adapter<Type_Val>::select(std::size_t i) const
+template <typename Type_Val, typename Compare>
+[[nodiscard]] std::optional<Type_Val> Set_Adapter<Type_Val, Compare>::select(std::size_t i) const
 {
     if (i == 0 || i > data_.size())
     {
@@ -128,8 +128,8 @@ template <typename Type_Val>
     return *iterator;
 }
 
-template <typename Type_Val>
-[[nodiscard]] std::size_t Set_Adapter<Type_Val>::count_less(const Type_Val& x) const
+template <typename Type_Val, typename Compare>
+[[nodiscard]] std::size_t Set_Adapter<Type_Val, Compare>::count_less(const Type_Val& x) const
 {
     return static_cast<std::size_t>(std::distance(data_.cbegin(), data_.lower_bound(x)));
 }

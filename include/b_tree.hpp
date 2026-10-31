@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <iterator>
 #include <cstddef>
+#include <functional>
 #include <algorithm>
 #include <optional>
 #include <limits>
@@ -23,7 +24,7 @@
 
 namespace search_tools {
 
-template <typename Type_Val>
+template <typename Type_Val, typename Compare = std::less<Type_Val>>
 class B_Tree
 {
     private:
@@ -53,6 +54,7 @@ class B_Tree
 
         std::unique_ptr<Node> root_ = nullptr;
         std::size_t t;
+        Compare comp_;
 
         void split_child(Node& parent, std::size_t child_index); //инвариант что parents не полный
 
@@ -61,7 +63,7 @@ class B_Tree
         std::size_t count_less_equal(Type_Val x) const;
 
     public:
-        explicit B_Tree(std::size_t t) : t(t)
+        explicit B_Tree(std::size_t t, Compare comp = Compare{}) : t(t), comp_(std::move(comp))
         {
             if (t < 2)
             {
@@ -87,8 +89,8 @@ class B_Tree
         }
 };
 
-template <typename Type_Val>
-[[nodiscard]] bool B_Tree<Type_Val>::execution_command(const input::Parsed_Command& command, std::ostream& results)
+template <typename Type_Val, typename Compare>
+[[nodiscard]] bool B_Tree<Type_Val, Compare>::execution_command(const input::Parsed_Command& command, std::ostream& results)
 {
     switch (command.type)
     {
@@ -126,8 +128,8 @@ template <typename Type_Val>
     return true;
 }
 
-template <typename Type_Val>
-void B_Tree<Type_Val>::insert(Type_Val val)
+template <typename Type_Val, typename Compare>
+void B_Tree<Type_Val, Compare>::insert(Type_Val val)
 {
     if (root_ == nullptr)
     {
@@ -151,20 +153,20 @@ void B_Tree<Type_Val>::insert(Type_Val val)
     static_cast<void>(insert_not_full(*root_, val));
 }
 
-template <typename Type_Val>
-[[nodiscard]] std::size_t B_Tree<Type_Val>::range_count(const Type_Val& l, const Type_Val& r) const
+template <typename Type_Val, typename Compare>
+[[nodiscard]] std::size_t B_Tree<Type_Val, Compare>::range_count(const Type_Val& l, const Type_Val& r) const
 {
     if (root_ == nullptr)
     {
         return 0;
     }
 
-    if (r < l)
+    if (comp_(r, l))
     {
         throw std::invalid_argument("обратный диапазон");
     }
 
-    if (!(l < r))
+    if (!comp_(l, r))
     {
         return 0;
     }
@@ -172,8 +174,8 @@ template <typename Type_Val>
     return count_less_equal(r) - count_less_equal(l);
 }
 
-template <typename Type_Val>
-[[nodiscard]] std::optional<Type_Val> B_Tree<Type_Val>::select(std::size_t i) const
+template <typename Type_Val, typename Compare>
+[[nodiscard]] std::optional<Type_Val> B_Tree<Type_Val, Compare>::select(std::size_t i) const
 {
    if (root_ == nullptr || i == 0 || i > root_ -> subtree_size_)
     {
@@ -211,8 +213,8 @@ template <typename Type_Val>
     return node -> value_.at(i - 1); //дошли до листа
 }
 
-template <typename Type_Val>
-[[nodiscard]] std::size_t B_Tree<Type_Val>::count_less(const Type_Val& x) const
+template <typename Type_Val, typename Compare>
+[[nodiscard]] std::size_t B_Tree<Type_Val, Compare>::count_less(const Type_Val& x) const
 {
     if (root_ == nullptr)
     {
@@ -231,7 +233,7 @@ template <typename Type_Val>
         {
             const std::size_t child_size = node -> children_.at(key_index) -> subtree_size_;
 
-            if (x <= node -> value_.at(key_index))
+            if (!comp_(node -> value_.at(key_index), x))
             {
                 break;
             }
@@ -243,14 +245,14 @@ template <typename Type_Val>
         node = node -> children_.at(key_index ).get();
     }
 
-    const auto position = std::lower_bound(node -> value_.begin(), node -> value_.end(), x);
+    const auto position = std::lower_bound(node -> value_.begin(), node -> value_.end(), x, comp_);
     count_min_ell += static_cast<std::size_t>(position - node -> value_.begin());
 
     return count_min_ell; //дошли до листа
 }
 
-template <typename Type_Val>
-void B_Tree<Type_Val>::split_child(Node& parent, std::size_t child_index) //инвариант что parents не полный
+template <typename Type_Val, typename Compare>
+void B_Tree<Type_Val, Compare>::split_child(Node& parent, std::size_t child_index) //инвариант что parents не полный
 {
     Node* node_child = parent.children_.at(child_index).get();
 
@@ -291,12 +293,12 @@ void B_Tree<Type_Val>::split_child(Node& parent, std::size_t child_index) //ин
 
 }   
 
-template <typename Type_Val>
-[[nodiscard]] bool B_Tree<Type_Val>::insert_not_full(Node& node, const Type_Val& val)
+template <typename Type_Val, typename Compare>
+[[nodiscard]] bool B_Tree<Type_Val, Compare>::insert_not_full(Node& node, const Type_Val& val)
 {
-    const auto it_insertion_point = std::lower_bound(node.value_.begin(), node.value_.end(), val);
+    const auto it_insertion_point = std::lower_bound(node.value_.begin(), node.value_.end(), val, comp_);
 
-    if (it_insertion_point != node.value_.end() && !(val < *it_insertion_point))
+    if (it_insertion_point != node.value_.end() && !comp_(val, *it_insertion_point))
     {
         return false;
     }
@@ -314,11 +316,12 @@ template <typename Type_Val>
     {
         split_child(node, child_index);
         
-        if (node.value_.at(child_index) < val)
+        if (comp_(node.value_.at(child_index), val))
         {
             ++child_index;
         }
-        else if (val == node.value_.at(child_index))
+        else if (!comp_(val, node.value_.at(child_index)) &&
+                 !comp_(node.value_.at(child_index), val))
         {
             return false;
         }
@@ -333,8 +336,8 @@ template <typename Type_Val>
     return true;
 }
 
-template <typename Type_Val>
-std::size_t B_Tree<Type_Val>::count_less_equal(Type_Val x) const
+template <typename Type_Val, typename Compare>
+std::size_t B_Tree<Type_Val, Compare>::count_less_equal(Type_Val x) const
 {
     if (root_ == nullptr)
     {
@@ -353,7 +356,7 @@ std::size_t B_Tree<Type_Val>::count_less_equal(Type_Val x) const
         {
             const std::size_t child_size = node -> children_.at(key_index) -> subtree_size_;
 
-            if (x < node -> value_.at(key_index))
+            if (comp_(x, node -> value_.at(key_index)))
             {
                 break;
             }
@@ -365,7 +368,7 @@ std::size_t B_Tree<Type_Val>::count_less_equal(Type_Val x) const
         node = node -> children_.at(key_index ).get();
     }
 
-    const auto position = std::upper_bound(node -> value_.begin(), node -> value_.end(), x);
+    const auto position = std::upper_bound(node -> value_.begin(), node -> value_.end(), x, comp_);
     count_min_ell += static_cast<std::size_t>(position - node -> value_.begin());
 
     return count_min_ell; //дошли до листа

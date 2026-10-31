@@ -16,8 +16,27 @@ add_executable(search_tree
     graphiviz/tree_graphviz.hpp
 )
 
+add_executable(ctest
+    main.cpp
+    src/input.cpp
+    include/input.hpp
+    include/set_adapter.hpp
+    include/sorted_vector.hpp
+    include/threaded_avl_tree.hpp
+    include/b_tree.hpp
+    graphiviz/tree_graphviz.hpp
+)
+
+
+
 target_include_directories(search_tree PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/graphiviz"
+)
+
+target_include_directories(ctest PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/graphivsiz"
 )

@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <iterator>
 #include <cstddef>
+#include <functional>
 #include <algorithm>
 #include <optional>
 #include <limits>
@@ -21,7 +22,7 @@
 
 namespace search_tools {
 
-template <typename Type_Val>
+template <typename Type_Val, typename Compare = std::less<Type_Val>>
 class AVL_Tree
 {
     private:
@@ -66,6 +67,7 @@ class AVL_Tree
         };
 
         Node* root_ = nullptr;
+        Compare comp_;
 
         Search_Result find_position(const Type_Val& value) const;
 
@@ -96,7 +98,7 @@ class AVL_Tree
 
         [[nodiscard]] std::size_t count_less(const Type_Val& x) const;
 
-        AVL_Tree() = default;
+        AVL_Tree(Compare comp = Compare{}) : comp_(std::move(comp)) {}
 
         ~AVL_Tree();
 
@@ -106,8 +108,8 @@ class AVL_Tree
         }
 };
 
-template <typename Type_Val>
-void AVL_Tree<Type_Val>::insert(Type_Val val)
+template <typename Type_Val, typename Compare>
+void AVL_Tree<Type_Val, Compare>::insert(Type_Val val)
 {
     Search_Result find_pos = find_position(val);
 
@@ -169,8 +171,8 @@ void AVL_Tree<Type_Val>::insert(Type_Val val)
     }
 }
 
-template <typename Type_Val>
-typename AVL_Tree<Type_Val>::Search_Result AVL_Tree<Type_Val>::find_position(const Type_Val& value) const
+template <typename Type_Val, typename Compare>
+typename AVL_Tree<Type_Val, Compare>::Search_Result AVL_Tree<Type_Val, Compare>::find_position(const Type_Val& value) const
 {
     if (root_ == nullptr)
     {
@@ -181,7 +183,7 @@ typename AVL_Tree<Type_Val>::Search_Result AVL_Tree<Type_Val>::find_position(con
 
     while(true)
     {
-        if (value < current -> value_)
+        if (comp_(value, current -> value_))
         {
             if (current -> left_type_ == Link_Type::Thread)
             {
@@ -189,7 +191,7 @@ typename AVL_Tree<Type_Val>::Search_Result AVL_Tree<Type_Val>::find_position(con
             }
             current = current -> left_;
         }
-        else if (current -> value_ < value)
+        else if (comp_(current -> value_, value))
         {
             if (current -> right_type_ == Link_Type::Thread)
             {
@@ -204,8 +206,8 @@ typename AVL_Tree<Type_Val>::Search_Result AVL_Tree<Type_Val>::find_position(con
     }
 }
 
-template <typename Type_Val>
-void AVL_Tree<Type_Val>::update_metadata(Node* node)
+template <typename Type_Val, typename Compare>
+void AVL_Tree<Type_Val, Compare>::update_metadata(Node* node)
 {
     if (node == nullptr)
     {
@@ -234,8 +236,8 @@ void AVL_Tree<Type_Val>::update_metadata(Node* node)
     node -> subtree_size_ = 1 + left_size + right_size;
 }
 
-template <typename Type_Val>
-int AVL_Tree<Type_Val>::balance_factor(const Node* node) const
+template <typename Type_Val, typename Compare>
+int AVL_Tree<Type_Val, Compare>::balance_factor(const Node* node) const
 {
     int left_height = -1;
     int right_height = -1;
@@ -253,8 +255,8 @@ int AVL_Tree<Type_Val>::balance_factor(const Node* node) const
     return right_height - left_height;
 }
 
-template <typename Type_Val>
-typename AVL_Tree<Type_Val>::Node* AVL_Tree<Type_Val>::rotate_left(Node* node)
+template <typename Type_Val, typename Compare>
+typename AVL_Tree<Type_Val, Compare>::Node* AVL_Tree<Type_Val, Compare>::rotate_left(Node* node)
 {
     Node* new_root = node -> right_;
     Node* old_parent = node -> parent_;
@@ -299,8 +301,8 @@ typename AVL_Tree<Type_Val>::Node* AVL_Tree<Type_Val>::rotate_left(Node* node)
     return new_root;
 }
 
-template <typename Type_Val>
-typename AVL_Tree<Type_Val>::Node* AVL_Tree<Type_Val>::rotate_right(Node* node)
+template <typename Type_Val, typename Compare>
+typename AVL_Tree<Type_Val, Compare>::Node* AVL_Tree<Type_Val, Compare>::rotate_right(Node* node)
 {
     Node* new_root = node -> left_;
     Node* old_parent = node -> parent_;
@@ -344,8 +346,8 @@ typename AVL_Tree<Type_Val>::Node* AVL_Tree<Type_Val>::rotate_right(Node* node)
     return new_root;
 }
 
-template <typename Type_Val>
-typename AVL_Tree<Type_Val>::Node* AVL_Tree<Type_Val>::rebalance(Node* node)
+template <typename Type_Val, typename Compare>
+typename AVL_Tree<Type_Val, Compare>::Node* AVL_Tree<Type_Val, Compare>::rebalance(Node* node)
 {
     const int balance = balance_factor(node);
 
@@ -372,8 +374,8 @@ typename AVL_Tree<Type_Val>::Node* AVL_Tree<Type_Val>::rebalance(Node* node)
     return node;
 }
 
-template <typename Type_Val>
-void AVL_Tree<Type_Val>::rebalance_up(Node* node)
+template <typename Type_Val, typename Compare>
+void AVL_Tree<Type_Val, Compare>::rebalance_up(Node* node)
 {
      if (node == nullptr)
     {
@@ -387,8 +389,8 @@ void AVL_Tree<Type_Val>::rebalance_up(Node* node)
     rebalance_up(new_root -> parent_);
 }
 
-template <typename Type_Val>
-[[nodiscard]] bool AVL_Tree<Type_Val>::execution_command(const input::Parsed_Command& command, std::ostream& results)
+template <typename Type_Val, typename Compare>
+[[nodiscard]] bool AVL_Tree<Type_Val, Compare>::execution_command(const input::Parsed_Command& command, std::ostream& results)
 {
    switch (command.type)
     {
@@ -426,15 +428,15 @@ template <typename Type_Val>
     return true;
 }
 
-template <typename Type_Val>
-[[nodiscard]] std::size_t AVL_Tree<Type_Val>::range_count(const Type_Val& l, const Type_Val& r) const
+template <typename Type_Val, typename Compare>
+[[nodiscard]] std::size_t AVL_Tree<Type_Val, Compare>::range_count(const Type_Val& l, const Type_Val& r) const
 {
-    if (r < l)
+    if (comp_(r, l))
     {
         throw std::invalid_argument("обратный диапазон");
     }
 
-    if (!(l < r))
+    if (!comp_(l, r))
     {
         return 0;
     }
@@ -444,9 +446,9 @@ template <typename Type_Val>
 
     std::size_t count = 0;
 
-    while (current != nullptr && current -> value_ <= r)
+    while (current != nullptr && !comp_(r, current -> value_))
     {
-        if (l < current -> value_)
+        if (comp_(l, current -> value_))
         {
             ++count;
         }
@@ -468,8 +470,8 @@ template <typename Type_Val>
     return count;
 }
 
-template <typename Type_Val>
-[[nodiscard]] std::optional<Type_Val> AVL_Tree<Type_Val>::select(std::size_t i) const
+template <typename Type_Val, typename Compare>
+[[nodiscard]] std::optional<Type_Val> AVL_Tree<Type_Val, Compare>::select(std::size_t i) const
 {
     if(root_ == nullptr || i == 0 || i > root_ -> subtree_size_)
     {
@@ -520,15 +522,15 @@ template <typename Type_Val>
     }
 }
 
-template <typename Type_Val> // Число ключей строго меньше x
-[[nodiscard]] std::size_t AVL_Tree<Type_Val>::count_less(const Type_Val& x) const
+template <typename Type_Val, typename Compare> // Число ключей строго меньше x
+[[nodiscard]] std::size_t AVL_Tree<Type_Val, Compare>::count_less(const Type_Val& x) const
 {
     std::size_t count = 0;
     const Node* current = root_;
 
     while (current != nullptr)
     {
-        if (current -> value_ < x)
+        if (comp_(current -> value_, x))
         {
             ++count;
 
@@ -558,8 +560,8 @@ template <typename Type_Val> // Число ключей строго меньш�
     return count;
 }
 
-template <typename Type_Val> //освободить все владения root
-AVL_Tree<Type_Val>::~AVL_Tree()
+template <typename Type_Val, typename Compare> //освободить все владения root
+AVL_Tree<Type_Val, Compare>::~AVL_Tree()
 {
     Node* del_key = root_;
 

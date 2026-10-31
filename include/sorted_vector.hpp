@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <functional>
 #include <optional>
 #include <ostream>
 #include <stdexcept>
@@ -13,13 +14,14 @@
 
 namespace search_tools {
 
-template <typename Type_Val>
+template <typename Type_Val, typename Compare = std::less<Type_Val>>
 class Sorted_Vector
 {
     private:
         using Sorted_Vector_Iterator = typename std::vector<Type_Val>::const_iterator;
 
         std::vector<Type_Val> data_;
+        Compare comp_;
 
     public:
         [[nodiscard]] bool execution_command(const input::Parsed_Command& command, std::ostream& results);
@@ -32,11 +34,11 @@ class Sorted_Vector
 
         [[nodiscard]] std::size_t count_less(const Type_Val& x) const;
 
-        Sorted_Vector() = default;
+        Sorted_Vector(Compare comp = Compare{}) : comp_(std::move(comp)) {}
 };
 
-template <typename Type_Val>
-[[nodiscard]] bool Sorted_Vector<Type_Val>::execution_command(const input::Parsed_Command& command, std::ostream& results)
+template <typename Type_Val, typename Compare>
+[[nodiscard]] bool Sorted_Vector<Type_Val, Compare>::execution_command(const input::Parsed_Command& command, std::ostream& results)
 {
     switch (command.type)
     {
@@ -74,12 +76,12 @@ template <typename Type_Val>
     return true;
 }
 
-template <typename Type_Val>
-void Sorted_Vector<Type_Val>::insert(Type_Val val)
+template <typename Type_Val, typename Compare>
+void Sorted_Vector<Type_Val, Compare>::insert(Type_Val val)
 {
-    const auto it_insertion_point = std::lower_bound(data_.begin(), data_.end(), val);
+    const auto it_insertion_point = std::lower_bound(data_.begin(), data_.end(), val, comp_);
 
-    if (it_insertion_point != data_.end() && !(val < *it_insertion_point))
+    if (it_insertion_point != data_.end() && !comp_(val, *it_insertion_point))
     {
         return;
     }
@@ -87,25 +89,25 @@ void Sorted_Vector<Type_Val>::insert(Type_Val val)
     data_.insert(it_insertion_point, std::move(val));
 }
 
-template <typename Type_Val>
-[[nodiscard]] std::size_t Sorted_Vector<Type_Val>::range_count(const Type_Val& l, const Type_Val& r) const
+template <typename Type_Val, typename Compare>
+[[nodiscard]] std::size_t Sorted_Vector<Type_Val, Compare>::range_count(const Type_Val& l, const Type_Val& r) const
 {
-    if (r < l)
+    if (comp_(r, l))
     {
         throw std::invalid_argument("обратный диапазон");
     }
-    if (!(l < r))
+    if (!comp_(l, r))
     {
         return 0;
     }
 
-    const auto it_left = std::upper_bound(data_.cbegin(), data_.cend(), l);
-    const auto it_right = std::upper_bound(data_.cbegin(), data_.cend(), r);
+    const auto it_left = std::upper_bound(data_.cbegin(), data_.cend(), l, comp_);
+    const auto it_right = std::upper_bound(data_.cbegin(), data_.cend(), r, comp_);
     return static_cast<std::size_t>(it_right - it_left);
 }
 
-template <typename Type_Val>
-[[nodiscard]] std::optional<Type_Val> Sorted_Vector<Type_Val>::select(std::size_t i) const
+template <typename Type_Val, typename Compare>
+[[nodiscard]] std::optional<Type_Val> Sorted_Vector<Type_Val, Compare>::select(std::size_t i) const
 {
     if (i == 0 || i > data_.size())
     {
@@ -114,10 +116,10 @@ template <typename Type_Val>
     return data_[i - 1];
 }
 
-template <typename Type_Val>
-[[nodiscard]] std::size_t Sorted_Vector<Type_Val>::count_less(const Type_Val& x) const
+template <typename Type_Val, typename Compare>
+[[nodiscard]] std::size_t Sorted_Vector<Type_Val, Compare>::count_less(const Type_Val& x) const
 {
-    const auto it_position = std::lower_bound(data_.cbegin(), data_.cend(), x);
+    const auto it_position = std::lower_bound(data_.cbegin(), data_.cend(), x, comp_);
     return static_cast<std::size_t>(it_position - data_.cbegin());
 }
 

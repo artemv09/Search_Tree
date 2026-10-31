@@ -1,0 +1,4 @@
+#ifndef SEARCH_TREE_WORKLOADS_HPP
+#define SEARCH_TREE_WORKLOADS_HPP
+
+#endif

@@ -27,6 +27,8 @@ namespace search_tools {
 template <typename Type_Val, typename Compare = std::less<Type_Val>>
 class B_Tree
 {
+    friend struct B_Tree_Test_Access;
+
     private:
         struct Node
         {
@@ -63,6 +65,16 @@ class B_Tree
         std::size_t count_less_equal(Type_Val x) const;
 
     public:
+        [[nodiscard]] std::size_t size() const noexcept
+        {
+            return root_ == nullptr ? 0 : root_ -> subtree_size_;
+        }
+
+        [[nodiscard]] bool empty() const noexcept
+        {
+            return root_ == nullptr;
+        }
+
         explicit B_Tree(std::size_t t, Compare comp = Compare{}) : t(t), comp_(std::move(comp))
         {
             if (t < 2)
@@ -156,14 +168,14 @@ void B_Tree<Type_Val, Compare>::insert(Type_Val val)
 template <typename Type_Val, typename Compare>
 [[nodiscard]] std::size_t B_Tree<Type_Val, Compare>::range_count(const Type_Val& l, const Type_Val& r) const
 {
-    if (root_ == nullptr)
-    {
-        return 0;
-    }
-
     if (comp_(r, l))
     {
         throw std::invalid_argument("обратный диапазон");
+    }
+
+    if (root_ == nullptr)
+    {
+        return 0;
     }
 
     if (!comp_(l, r))

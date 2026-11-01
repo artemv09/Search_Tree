@@ -13,7 +13,7 @@
 #include <optional>
 #include <limits>
 #include <cassert>
-#include <memory.h>
+#include <memory>
 #include <utility>
 
 #include "input.hpp"
@@ -25,6 +25,8 @@ namespace search_tools {
 template <typename Type_Val, typename Compare = std::less<Type_Val>>
 class AVL_Tree
 {
+    friend struct AVL_Test_Access;
+
     private:
 
         enum class Search_Status
@@ -88,6 +90,16 @@ class AVL_Tree
         void rebalance_up(Node* node);
 
     public:
+        [[nodiscard]] std::size_t size() const noexcept
+        {
+            return root_ == nullptr ? 0 : root_ -> subtree_size_;
+        }
+
+        [[nodiscard]] bool empty() const noexcept
+        {
+            return root_ == nullptr;
+        }
+
         [[nodiscard]] bool execution_command(const input::Parsed_Command& command, std::ostream& results);
 
         void insert(Type_Val val);
@@ -99,6 +111,9 @@ class AVL_Tree
         [[nodiscard]] std::size_t count_less(const Type_Val& x) const;
 
         AVL_Tree(Compare comp = Compare{}) : comp_(std::move(comp)) {}
+
+        AVL_Tree(const AVL_Tree&) = delete;
+        AVL_Tree& operator=(const AVL_Tree&) = delete;
 
         ~AVL_Tree();
 

@@ -24,6 +24,16 @@ class Sorted_Vector
         Compare comp_;
 
     public:
+        [[nodiscard]] std::size_t size() const noexcept
+        {
+            return data_.size();
+        }
+
+        [[nodiscard]] bool empty() const noexcept
+        {
+            return data_.empty();
+        }
+
         [[nodiscard]] bool execution_command(const input::Parsed_Command& command, std::ostream& results);
 
         void insert(Type_Val val);

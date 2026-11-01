@@ -33,6 +33,9 @@ enum class Read_Status
 
 namespace detail {
 
+template <typename Integer>
+Integer parse_integer(std::string_view token, const char* name);
+
 bool read_token(std::istream& stream, std::string& token);
 
 void read_argument(std::istream& stream, std::string& token, const char* name);

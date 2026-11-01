@@ -97,8 +97,8 @@ void write_dot(const Node* root, std::ostream& out)
     for (std::size_t i = 0; i < nodes.size(); ++i)
     {
         const Node* node = nodes[i];
-        discover(node->left_);
-        discover(node->right_);
+        discover(node -> left_);
+        discover(node -> right_);
     }
 
     out << "digraph ThreadedTree {\n"
@@ -116,7 +116,7 @@ void write_dot(const Node* root, std::ostream& out)
     {
         const Node* node = nodes[i];
         std::ostringstream value;
-        value << node->value_;
+        value << node -> value_;
         if (!value)
         {
             throw std::runtime_error("Не удалось вывести ключ узла");
@@ -125,10 +125,10 @@ void write_dot(const Node* root, std::ostream& out)
             << "<TR><TD COLSPAN=\"2\" BGCOLOR=\""
             << (node == root ? "#dbeafe" : "#f3f4f6") << "\">"
             << detail::escape_html(value.str()) << "</TD></TR>"
-            << "<TR><TD>h=" << node->height_
-            << "</TD><TD>size=" << node->subtree_size_ << "</TD></TR>"
-            << "<TR><TD PORT=\"l\">L" << (node->left_ ? "" : "=nullptr") << "</TD>"
-            << "<TD PORT=\"r\">R" << (node->right_ ? "" : "=nullptr")
+            << "<TR><TD>h=" << node -> height_
+            << "</TD><TD>size=" << node -> subtree_size_ << "</TD></TR>"
+            << "<TR><TD PORT=\"l\">L" << (node -> left_ ? "" : "=nullptr") << "</TD>"
+            << "<TD PORT=\"r\">R" << (node -> right_ ? "" : "=nullptr")
             << "</TD></TR></TABLE>>];\n";
     }
 
@@ -153,8 +153,8 @@ void write_dot(const Node* root, std::ostream& out)
             out << ";\n";
         };
 
-        edge(node->left_, "l", node->left_type_ == Link_Type::Thread);
-        edge(node->right_, "r", node->right_type_ == Link_Type::Thread);
+        edge(node -> left_, "l", node -> left_type_ == Link_Type::Thread);
+        edge(node -> right_, "r", node -> right_type_ == Link_Type::Thread);
 
     }
     out << "}\n";
@@ -205,7 +205,7 @@ void write_b_tree_dot(const Node* root, std::ostream& out)
     for (std::size_t i = 0; i < nodes.size(); ++i)
     {
         const Node* node = nodes[i];
-        for (const auto& child : node->children_)
+        for (const auto& child : node -> children_)
         {
             discover(child.get());
         }
@@ -215,7 +215,7 @@ void write_b_tree_dot(const Node* root, std::ostream& out)
     std::size_t cell_width = 56;
     for (std::size_t i = 0; i < nodes.size(); ++i)
     {
-        for (const auto& key : nodes[i]->value_)
+        for (const auto& key : nodes[i] -> value_)
         {
             std::ostringstream value;
             value << key;
@@ -247,14 +247,14 @@ void write_b_tree_dot(const Node* root, std::ostream& out)
     {
         const Node* node = nodes[i];
         out << "  n" << i << " [label=<<TABLE BORDER=\"1\" CELLBORDER=\"1\" CELLSPACING=\"0\">"
-            << "<TR><TD COLSPAN=\"" << (node->value_.empty() ? 1 : node->value_.size())
-            << "\" ALIGN=\"CENTER\">size=" << node->subtree_size_ << "</TD></TR><TR>";
+            << "<TR><TD COLSPAN=\"" << (node -> value_.empty() ? 1 : node -> value_.size())
+            << "\" ALIGN=\"CENTER\">size=" << node -> subtree_size_ << "</TD></TR><TR>";
 
-        if (node->value_.empty())
+        if (node -> value_.empty())
         {
             out << "<TD PORT=\"c0\" WIDTH=\"" << cell_width << "\" HEIGHT=\"24\">&#160;</TD>";
         }
-        for (std::size_t j = 0; j < node->value_.size(); ++j)
+        for (std::size_t j = 0; j < node -> value_.size(); ++j)
         {
             out << "<TD PORT=\"c" << j << "\" BGCOLOR=\""
                 << (node == root ? "#dbeafe" : "#f3f4f6") << "\" WIDTH=\"" << cell_width
@@ -268,14 +268,14 @@ void write_b_tree_dot(const Node* root, std::ostream& out)
     for (std::size_t i = 0; i < nodes.size(); ++i)
     {
         const Node* node = nodes[i];
-        for (std::size_t j = 0; j < node->children_.size(); ++j)
+        for (std::size_t j = 0; j < node -> children_.size(); ++j)
         {
-            if (node->children_[j])
+            if (node -> children_[j])
             {
-                const bool rightmost = !node->value_.empty() && j == node->value_.size();
+                const bool rightmost = !node -> value_.empty() && j == node -> value_.size();
                 out << "  n" << i << ":c" << (rightmost ? j - 1 : j)
                     << (rightmost ? ":se -> n" : ":sw -> n")
-                    << ids.at(node->children_[j].get()) << ":n;\n";
+                    << ids.at(node -> children_[j].get()) << ":n;\n";
             }
         }
     }

@@ -112,6 +112,7 @@ void report_error(std::ostream& errors, std::size_t command_number, const char* 
     try 
     {
         std::string token;
+        
         if (!detail::read_token(stream, token)) 
         {
             return Read_Status::EndOfInput;
@@ -153,8 +154,10 @@ void report_error(std::ostream& errors, std::size_t command_number, const char* 
             {
                 detail::read_argument(stream, token, "l");
                 parsed.argument = detail::parse_integer<int>(token, "l");
+
                 detail::read_argument(stream, token, "r");
                 parsed.right_bound = detail::parse_integer<int>(token, "r");
+
                 break;
             }
             case Command::Select:

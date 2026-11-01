@@ -31,6 +31,16 @@ class Set_Adapter
         Set data_;
         
     public:
+        [[nodiscard]] std::size_t size() const noexcept
+        {
+            return data_.size();
+        }
+
+        [[nodiscard]] bool empty() const noexcept
+        {
+            return data_.empty();
+        }
+
         [[nodiscard]] bool execution_command(const input::Parsed_Command& command, std::ostream& results);
 
         // Вставить ключ
@@ -61,6 +71,7 @@ template <typename Type_Val, typename Compare>
         case(input::Command::RangeCount):
         {
             results << range_count(Type_Val(command.argument), Type_Val(command.right_bound));
+            break;
         }
         case(input::Command::Select):
         {
@@ -121,6 +132,7 @@ template <typename Type_Val, typename Compare>
     }
 
     Set_Iterator iterator = data_.cbegin();
+
     for (std::size_t position = 1; position < i; position++)
     {
         iterator++;

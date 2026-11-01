@@ -1,3 +1,8 @@
 AGENTS.md
 build
-graphiviz
+graphiviz/b_tree.dot
+graphiviz/tree.dot
+graphiviz/tree.svg
+
+graphiviz/b_tree.svg
+

@@ -55,6 +55,7 @@ if(BUILD_TESTING)
 
     add_executable(search_tree_tests
         tests/unit/b_tree_test.cpp
+        tests/unit/command_runner_test.cpp
         tests/unit/input_test.cpp
         tests/unit/set_adapter_test.cpp
         tests/unit/sorted_vector_test.cpp
@@ -73,7 +74,7 @@ endif()
 if(SEARCH_TREE_BUILD_BENCHMARKS)
     add_executable(search_tree_bench
         benchmarks/benchmark_main.cpp
-        benchmarks/workloads.cpp
+        benchmarks/benchmark.cpp
     )
     target_link_libraries(search_tree_bench PRIVATE search_tree_containers)
     

@@ -12,18 +12,19 @@
 namespace search_tree_apps {
 
 template <typename Container>
-int run_commands(Container& container)
+int run_commands(Container& container, std::istream& commands,
+                 std::ostream& results, std::ostream& errors)
 {
     for (std::size_t command_number = 1; ; ++command_number)
     {
         try
         {
             input::Parsed_Command command;
-            const auto status = input::read_command(std::cin, command, std::cerr, command_number);
+            const auto status = input::read_command(commands, command, errors, command_number);
 
             if (status == input::Read_Status::EndOfInput)
             {
-                if (!std::cout)
+                if (!results)
                 {
                     throw std::runtime_error("ошибка вывода результатов");
                 }
@@ -35,23 +36,29 @@ int run_commands(Container& container)
                 return EXIT_FAILURE;
             }
 
-            if (!container.execution_command(command, std::cout))
+            if (!container.execution_command(command, results))
             {
                 throw std::runtime_error("не удалось выполнить команду");
             }
 
             if (command.type != input::Command::Insert)
             {
-                std::cout << '\n';
+                results << '\n';
             }
         }
 
         catch (const std::exception& error)
         {
-            std::cerr << "Команда " << command_number << ": " << error.what() << '\n';
+            errors << "Команда " << command_number << ": " << error.what() << '\n';
             return EXIT_FAILURE;
         }
     }
+}
+
+template <typename Container>
+int run_commands(Container& container)
+{
+    return run_commands(container, std::cin, std::cout, std::cerr);
 }
 
 } //namespace search_tree_apps

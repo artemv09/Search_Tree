@@ -1,5 +1,5 @@
-#ifndef SEARCH_TREE_BENCHMARK_HPP
-#define SEARCH_TREE_BENCHMARK_HPP
+#ifndef SEARCH_TREE_BENCHMARK_
+#define SEARCH_TREE_BENCHMARK_
 
 #include <cstddef>
 #include <vector>

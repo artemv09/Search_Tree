@@ -14,6 +14,7 @@
 #include <cstdint>
 #include <optional>
 #include <cstdlib>
+#include <utility>
 
 #include "b_tree.hpp"
 #include "set_adapter.hpp"
@@ -26,11 +27,16 @@ void print_measurement(const char* container_name, const char* sequence_name,
                        const char* method, std::size_t insertions,
                        std::size_t unique_count, std::size_t operations,
                        std::optional<std::chrono::steady_clock::duration> elapsed,
-                       std::optional<std::uint64_t> checksum = std::nullopt)
+                       std::optional<std::uint64_t> checksum = std::nullopt,
+                       const char* case_name = nullptr)
 {
-    std::cout << container_name << " | " << sequence_name
-              << " | вставок = " << insertions << " | уникальных = " << unique_count
-              << " | метод = " << method << " | операций = " << operations;
+    std::cout << container_name << " | " << sequence_name << " | " << method;
+    if (case_name)
+    {
+        std::cout << " | " << case_name;
+    }
+    std::cout << " | вставок = " << insertions << " | уникальных = " << unique_count
+              << " | операций = " << operations;
 
     if (elapsed)
     {
@@ -54,13 +60,13 @@ void print_measurement(const char* container_name, const char* sequence_name,
 template <typename Container>
 void benchmark_container(Container& container, const char* container_name,
                          const char* sequence_name, const std::vector<int>& data,
-                         const std::vector<int>& ordered)
+                         const std::vector<int>& ordered,
+                         const std::vector<std::size_t>& ranks,
+                         const std::vector<std::pair<int, int>>& narrow_ranges,
+                         const std::vector<std::pair<int, int>>& wide_ranges)
 {
     using Clock = std::chrono::steady_clock;
     const std::size_t unique_count = ordered.size();
-    const std::size_t narrow_operations = unique_count >= 2 ? unique_count - 1 : 0;
-    const std::size_t width = unique_count / 2;
-    const std::size_t wide_operations = unique_count >= 2 ? unique_count - width : 0;
 
     if (!container.empty())
     {
@@ -84,10 +90,10 @@ void benchmark_container(Container& container, const char* container_name,
     std::uint64_t select_checksum = 0;
     const auto start_select = Clock::now();
 
-    for (std::size_t i = 1; i <= unique_count; ++i)
+    for (std::size_t rank : ranks)
     {
-        const auto value = container.select(i);
-        select_checksum += value.value_or(0);
+        const auto value = container.select(rank);
+        select_checksum += static_cast<std::uint64_t>(value.value_or(0));
     }
 
     const auto finish_select = Clock::now();
@@ -95,7 +101,7 @@ void benchmark_container(Container& container, const char* container_name,
     std::uint64_t count_checksum = 0;
     const auto start_count = Clock::now();
 
-    for (int key : ordered)
+    for (int key : data)
     {
         count_checksum += container.count_less(key);
     }
@@ -103,69 +109,260 @@ void benchmark_container(Container& container, const char* container_name,
     const auto finish_count = Clock::now();
 
     std::uint64_t narrow_checksum = 0;
-    std::optional<Clock::duration> narrow_elapsed;
-    std::uint64_t wide_checksum = 0;
-    std::optional<Clock::duration> wide_elapsed;
+    const auto start_narrow = Clock::now();
 
-    if (unique_count >= 2)
+    for (const auto& [left, right] : narrow_ranges)
     {
-        const auto start_narrow = Clock::now();
-
-        for (std::size_t i = 1; i < unique_count; ++i)
-        {
-            narrow_checksum += container.range_count(ordered[i - 1], ordered[i]);
-        }
-
-        const auto finish_narrow = Clock::now();
-        narrow_elapsed = finish_narrow - start_narrow;
-
-        const auto start_wide = Clock::now();
-
-        for (std::size_t i = 0; i < unique_count - width; ++i)
-        {
-            wide_checksum += container.range_count(ordered[i], ordered[i + width]);
-        }
-
-        const auto finish_wide = Clock::now();
-        wide_elapsed = finish_wide - start_wide;
+        narrow_checksum += container.range_count(left, right);
     }
+
+    const auto finish_narrow = Clock::now();
+
+    std::uint64_t wide_checksum = 0;
+    const auto start_wide = Clock::now();
+
+    for (const auto& [left, right] : wide_ranges)
+    {
+        wide_checksum += container.range_count(left, right);
+    }
+
+    const auto finish_wide = Clock::now();
 
     print_measurement(container_name, sequence_name, "insert", data.size(), unique_count,
                       data.size(), finish_insert - start_insert);
     print_measurement(container_name, sequence_name, "select", data.size(), unique_count,
-                      unique_count, finish_select - start_select, select_checksum);
+                      data.size(), finish_select - start_select, select_checksum);
     print_measurement(container_name, sequence_name, "count_less", data.size(), unique_count,
-                      unique_count, finish_count - start_count, count_checksum);
-    print_measurement(container_name, sequence_name, "range_count узкий", data.size(), unique_count,
-                      narrow_operations, narrow_elapsed, narrow_checksum);
-    print_measurement(container_name, sequence_name, "range_count широкий", data.size(), unique_count,
-                      wide_operations, wide_elapsed, wide_checksum);
+                      data.size(), finish_count - start_count, count_checksum);
+    print_measurement(container_name, sequence_name,
+                      unique_count == 1 ? "range_count узкий (пустой диапазон, ранний выход)" : "range_count узкий",
+                      data.size(), unique_count, data.size(), finish_narrow - start_narrow, narrow_checksum);
+    print_measurement(container_name, sequence_name,
+                      unique_count == 1 ? "range_count широкий (пустой диапазон, ранний выход)" : "range_count широкий",
+                      data.size(), unique_count, data.size(), finish_wide - start_wide, wide_checksum);
 }
 
 void benchmark_sequence(const char* sequence_name, std::vector<int> data)
 {
+    if (data.empty())
+    {
+        std::cout << sequence_name << " | пустой data, запросы пропущены\n";
+        return;
+    }
+
     std::vector<int> ordered = data;
     std::sort(ordered.begin(), ordered.end());
     ordered.erase(std::unique(ordered.begin(), ordered.end()), ordered.end());
 
+    std::vector<std::size_t> ranks;
+    std::vector<std::pair<int, int>> narrow_ranges;
+    std::vector<std::pair<int, int>> wide_ranges;
+    ranks.reserve(data.size());
+    narrow_ranges.reserve(data.size());
+    wide_ranges.reserve(data.size());
+
+    for (int key : data)
+    {
+        const std::size_t position = std::lower_bound(ordered.begin(), ordered.end(), key) - ordered.begin();
+        ranks.push_back(position + 1);
+        if (ordered.size() == 1)
+        {
+            narrow_ranges.emplace_back(key, key);
+            wide_ranges.emplace_back(key, key);
+        }
+        else
+        {
+            const std::size_t narrow_left = std::min(position, ordered.size() - 2);
+            const std::size_t width = ordered.size() / 2;
+            const std::size_t wide_left = std::min(position, ordered.size() - width - 1);
+            narrow_ranges.emplace_back(ordered[narrow_left], ordered[narrow_left + 1]);
+            wide_ranges.emplace_back(ordered[wide_left], ordered[wide_left + width]);
+        }
+    }
+
     {
         search_tools::B_Tree<int> b_tree(2);
-        benchmark_container(b_tree, "B_Tree<int>", sequence_name, data, ordered);
+        benchmark_container(b_tree, "B_Tree<int>", sequence_name, data, ordered, ranks, narrow_ranges, wide_ranges);
     }
 
     {
         search_tools::Set_Adapter<int> set_adapter;
-        benchmark_container(set_adapter, "Set_Adapter<int>", sequence_name, data, ordered);
+        benchmark_container(set_adapter, "Set_Adapter<int>", sequence_name, data, ordered, ranks, narrow_ranges, wide_ranges);
     }
 
     {
         search_tools::Sorted_Vector<int> sorted_vector;
-        benchmark_container(sorted_vector, "Sorted_Vector<int>", sequence_name, data, ordered);
+        benchmark_container(sorted_vector, "Sorted_Vector<int>", sequence_name, data, ordered, ranks, narrow_ranges, wide_ranges);
     }
 
     {
         search_tools::AVL_Tree<int> avl_tree;
-        benchmark_container(avl_tree, "AVL_Tree<int>", sequence_name, data, ordered);
+        benchmark_container(avl_tree, "AVL_Tree<int>", sequence_name, data, ordered, ranks, narrow_ranges, wide_ranges);
+    }
+}
+
+template <typename Container>
+void benchmark_select_cases(const Container& container, const char* container_name,
+                            const std::vector<int>& data)
+{
+    using Clock = std::chrono::steady_clock;
+    const std::size_t unique_count = container.size();
+    const std::size_t repetitions = data.size() / 3;
+
+    {
+        const std::size_t index = 1;
+        std::uint64_t checksum = 0;
+        const auto start = Clock::now();
+        for (std::size_t i = 0; i < repetitions; ++i)
+        {
+#if defined(__GNUC__) || defined(__clang__)
+            asm volatile("" : : "g"(&container) : "memory");
+#endif
+            checksum += static_cast<std::uint64_t>(container.select(index).value_or(0));
+        }
+        const auto finish = Clock::now();
+        print_measurement(container_name, "Strictly_increasing", "select", data.size(),
+                          unique_count, repetitions, finish - start, checksum, "First");
+    }
+
+    {
+        const std::size_t index = 1 + unique_count / 2;
+        std::uint64_t checksum = 0;
+        const auto start = Clock::now();
+        for (std::size_t i = 0; i < repetitions; ++i)
+        {
+#if defined(__GNUC__) || defined(__clang__)
+            asm volatile("" : : "g"(&container) : "memory");
+#endif
+            checksum += static_cast<std::uint64_t>(container.select(index).value_or(0));
+        }
+        const auto finish = Clock::now();
+        print_measurement(container_name, "Strictly_increasing", "select", data.size(),
+                          unique_count, repetitions, finish - start, checksum, "Middle");
+    }
+
+    {
+        const std::size_t index = unique_count;
+        std::uint64_t checksum = 0;
+        const auto start = Clock::now();
+        for (std::size_t i = 0; i < repetitions; ++i)
+        {
+#if defined(__GNUC__) || defined(__clang__)
+            asm volatile("" : : "g"(&container) : "memory");
+#endif
+            checksum += static_cast<std::uint64_t>(container.select(index).value_or(0));
+        }
+        const auto finish = Clock::now();
+        print_measurement(container_name, "Strictly_increasing", "select", data.size(),
+                          unique_count, repetitions, finish - start, checksum, "Last");
+    }
+}
+
+template <typename Container>
+void benchmark_count_less_cases(const Container& container, const char* container_name,
+                                const std::vector<int>& data)
+{
+    using Clock = std::chrono::steady_clock;
+    const std::size_t unique_count = container.size();
+    const std::size_t repetitions = data.size() / 3;
+
+    {
+        const int key = data.front();
+        std::uint64_t checksum = 0;
+        const auto start = Clock::now();
+        for (std::size_t i = 0; i < repetitions; ++i)
+        {
+#if defined(__GNUC__) || defined(__clang__)
+            asm volatile("" : : "g"(&container) : "memory");
+#endif
+            checksum += container.count_less(key);
+        }
+        const auto finish = Clock::now();
+        print_measurement(container_name, "Strictly_increasing", "count_less", data.size(),
+                          unique_count, repetitions, finish - start, checksum, "First");
+    }
+
+    {
+        const int key = data[unique_count / 2];
+        std::uint64_t checksum = 0;
+        const auto start = Clock::now();
+        for (std::size_t i = 0; i < repetitions; ++i)
+        {
+#if defined(__GNUC__) || defined(__clang__)
+            asm volatile("" : : "g"(&container) : "memory");
+#endif
+            checksum += container.count_less(key);
+        }
+        const auto finish = Clock::now();
+        print_measurement(container_name, "Strictly_increasing", "count_less", data.size(),
+                          unique_count, repetitions, finish - start, checksum, "Middle");
+    }
+
+    {
+        const int key = data.back();
+        std::uint64_t checksum = 0;
+        const auto start = Clock::now();
+        for (std::size_t i = 0; i < repetitions; ++i)
+        {
+#if defined(__GNUC__) || defined(__clang__)
+            asm volatile("" : : "g"(&container) : "memory");
+#endif
+            checksum += container.count_less(key);
+        }
+        const auto finish = Clock::now();
+        print_measurement(container_name, "Strictly_increasing", "count_less", data.size(),
+                          unique_count, repetitions, finish - start, checksum, "Last");
+    }
+}
+
+void benchmark_strictly_increasing_cases(std::size_t size_data)
+{
+    std::cout << "=== Дополнительные замеры Strictly_increasing ===\n";
+    const std::vector<int> data = Strictly_increasing(size_data);
+    if (data.size() / 3 == 0)
+    {
+        std::cout << "Дополнительный эксперимент пропущен: N / 3 == 0, нужно N >= 3\n";
+        return;
+    }
+
+    {
+        search_tools::B_Tree<int> container(2);
+        for (int key : data)
+        {
+            container.insert(key);
+        }
+        benchmark_select_cases(container, "B_Tree<int>", data);
+        benchmark_count_less_cases(container, "B_Tree<int>", data);
+    }
+
+    {
+        search_tools::Set_Adapter<int> container;
+        for (int key : data)
+        {
+            container.insert(key);
+        }
+        benchmark_select_cases(container, "Set_Adapter<int>", data);
+        benchmark_count_less_cases(container, "Set_Adapter<int>", data);
+    }
+
+    {
+        search_tools::Sorted_Vector<int> container;
+        for (int key : data)
+        {
+            container.insert(key);
+        }
+        benchmark_select_cases(container, "Sorted_Vector<int>", data);
+        benchmark_count_less_cases(container, "Sorted_Vector<int>", data);
+    }
+
+    {
+        search_tools::AVL_Tree<int> container;
+        for (int key : data)
+        {
+            container.insert(key);
+        }
+        benchmark_select_cases(container, "AVL_Tree<int>", data);
+        benchmark_count_less_cases(container, "AVL_Tree<int>", data);
     }
 }
 
@@ -318,5 +515,5 @@ void do_benchmark_test()
     benchmark_sequence("With_extreme_values", With_extreme_values(size_data));
     benchmark_sequence("Single_element", Single_element(size_data));
 
-
+    benchmark_strictly_increasing_cases(size_data);
 }

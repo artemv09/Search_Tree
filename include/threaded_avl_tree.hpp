@@ -444,101 +444,87 @@ template <typename Type_Val, typename Compare>
 }
 
 template <typename Type_Val, typename Compare>
-[[nodiscard]] std::size_t AVL_Tree<Type_Val, Compare>::range_count(const Type_Val& l, const Type_Val& r) const
+std::size_t AVL_Tree<Type_Val, Compare>::range_count(const Type_Val& l, const Type_Val& r) const
 {
     if (comp_(r, l))
     {
         throw std::invalid_argument("обратный диапазон");
     }
 
-    if (!comp_(l, r))
+    if (root_ == nullptr || !comp_(l, r))
     {
         return 0;
     }
 
-    Search_Result begin_row = find_position(l);
-    const Node* current = begin_row.node;
-
-    std::size_t count = 0;
-
-    while (current != nullptr && !comp_(r, current -> value_))
+    const auto count_less_equal = [this](const Type_Val& key) -> std::size_t
     {
-        if (comp_(l, current -> value_))
-        {
-            ++count;
-        }
-        if (current -> right_type_ == Link_Type::Thread)
-        {
-            current = current -> right_;
-        }
-        else
-        {
-            current = current -> right_;
+        std::size_t count = 0;
+        Node* current = root_;
 
-            while (current -> left_type_ == Link_Type::Child)
+        while (current != nullptr)
+        {
+            if (!comp_(key, current -> value_))
             {
-                current = current -> left_;
-            }
-        }
-    }
+                ++count;
 
-    return count;
-}
+                if (current -> left_type_ == Link_Type::Child)
+                {
+                    count += current -> left_ -> subtree_size_;
+                }
 
-template <typename Type_Val, typename Compare>
-[[nodiscard]] std::optional<Type_Val> AVL_Tree<Type_Val, Compare>::select(std::size_t i) const
-{
-    if(root_ == nullptr || i == 0 || i > root_ -> subtree_size_)
-    {
-        return std::nullopt;
-    }
-
-    Node* min_key = root_;
-    while(min_key -> left_ != nullptr)
-    {
-        min_key = min_key -> left_;
-    }
-
-    std::size_t count = 1;
-
-    while (min_key != nullptr && count < i)
-    {
-        if (min_key -> right_type_ == Link_Type::Child)
-        {
-            min_key = min_key -> right_;
-
-            if (min_key -> left_type_ == Link_Type::Thread)
-            {
-                count++;
+                current = (current -> right_type_ == Link_Type::Child) ? current -> right_ : nullptr;
             }
             else
             {
-                while(min_key -> left_type_ != Link_Type::Thread)
-                {
-                    min_key = min_key -> left_;
-                }
-                count++;
+                current = (current -> left_type_ == Link_Type::Child) ? current -> left_ : nullptr;
             }
         }
-        else
-        {
-            min_key = min_key -> right_;
-            count++;
-        }
-    }
 
-    if (count == i)
-    {
-        return min_key -> value_;
-    }
-    else
+        return count;
+    };
+
+    const std::size_t right_count = count_less_equal(r);
+    const std::size_t left_count = count_less_equal(l);
+
+    return right_count - left_count;
+}
+
+template <typename Type_Val, typename Compare>
+std::optional<Type_Val> AVL_Tree<Type_Val, Compare>::select(std::size_t i) const
+{
+    if (i == 0 || i > size())
     {
         return std::nullopt;
     }
+
+    const Node* current = root_;
+
+    while (current != nullptr)
+    {
+        const std::size_t left_size = (current -> left_type_ == Link_Type::Child) ? current -> left_ -> subtree_size_ : 0;
+
+        if (i == left_size + 1)
+        {
+            return current -> value_;
+        }
+
+        if (i <= left_size)
+        {
+            current = current -> left_;
+        }
+        else
+        {
+            i -= left_size + 1;
+
+            current = (current -> right_type_ == Link_Type::Child) ? current -> right_ : nullptr;
+        }
+    }
+
+    return std::nullopt;
 }
 
-template <typename Type_Val, typename Compare> // Число ключей строго меньше x
-[[nodiscard]] std::size_t AVL_Tree<Type_Val, Compare>::count_less(const Type_Val& x) const
+template <typename Type_Val, typename Compare>
+std::size_t AVL_Tree<Type_Val, Compare>::count_less(const Type_Val& x) const
 {
     std::size_t count = 0;
     const Node* current = root_;
@@ -554,21 +540,11 @@ template <typename Type_Val, typename Compare> // Число ключей стр
                 count += current -> left_ -> subtree_size_;
             }
 
-            if (current -> right_type_ == Link_Type::Thread)
-            {
-                break;
-            }
-
-            current = current -> right_;
+            current = (current -> right_type_ == Link_Type::Child) ? current -> right_ : nullptr;
         }
         else
         {
-            if (current -> left_type_ == Link_Type::Thread)
-            {
-                break;
-            }
-
-            current = current -> left_;
+            current = (current -> left_type_ == Link_Type::Child) ? current -> left_ : nullptr;
         }
     }
 

@@ -1,18 +1,12 @@
 #ifndef SET_ADAPTER_
 #define SET_ADAPTER_
 
-#include <iostream>
-#include <vector>
-#include <string>
-#include <list>
-#include <unordered_map>
+#include <ios>
+#include <ostream>
 #include <iterator>
 #include <cstddef>
 #include <functional>
-#include <algorithm>
 #include <optional>
-#include <limits>
-#include <cassert>
 #include <set>
 #include <utility>
 #include <stdexcept>

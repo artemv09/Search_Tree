@@ -1,8 +1,13 @@
 #include "input.hpp"
 
 #include <charconv>
+#include <cstddef>
 #include <exception>
+#include <ios>
+#include <istream>
+#include <ostream>
 #include <stdexcept>
+#include <string>
 #include <string_view>
 #include <system_error>
 

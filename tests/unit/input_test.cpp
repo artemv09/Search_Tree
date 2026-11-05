@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <initializer_list>
 #include <limits>
 #include <sstream>
 #include <string>

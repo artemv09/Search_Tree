@@ -1,18 +1,12 @@
 #ifndef AVL_TREE_
 #define AVL_TREE_
 
-#include <iostream>
-#include <vector>
-#include <string>
-#include <list>
-#include <unordered_map>
-#include <iterator>
+#include <ostream>
 #include <cstddef>
 #include <functional>
 #include <algorithm>
 #include <optional>
-#include <limits>
-#include <cassert>
+#include <stdexcept>
 #include <memory>
 #include <utility>
 
@@ -31,7 +25,7 @@ class AVL_Tree
 
         enum class Search_Status
         {
-            Found,        // Ключ найден
+            Found,         // Ключ найден
             Insert_Left,   // Нужно вставить слева от найденного родителя
             Insert_Right,  // Нужно вставить справа от найденного родителя
             Empty_Tree     // Дерево пустое — новый узел станет корнем
@@ -89,6 +83,12 @@ class AVL_Tree
         // Обновляет и балансирует узлы на пути к корню.
         void rebalance_up(Node* node);
 
+        //удаление созданных узлов если выкинет исключение
+        void destroy_subtree(Node* node) noexcept;
+
+        Node* copy_subtree(const Node* source, Node* parent, Node* previous, Node* next);
+
+
     public:
         [[nodiscard]] std::size_t size() const noexcept
         {
@@ -112,10 +112,13 @@ class AVL_Tree
 
         AVL_Tree(Compare comp = Compare{}) : comp_(std::move(comp)) {}
 
-        AVL_Tree(const AVL_Tree&) = delete;
-        AVL_Tree& operator=(const AVL_Tree&) = delete;
-
         ~AVL_Tree();
+
+        AVL_Tree(const AVL_Tree& other);            
+        AVL_Tree& operator=(const AVL_Tree& other); 
+
+        AVL_Tree(AVL_Tree&& other);                 
+        AVL_Tree& operator=(AVL_Tree&& other);    
 
         void draw() const
         {
@@ -583,6 +586,113 @@ AVL_Tree<Type_Val, Compare>::~AVL_Tree()
     }
 
     root_ = nullptr;
+}
+
+template <typename Type_Val, typename Compare>
+void AVL_Tree<Type_Val, Compare>::destroy_subtree(Node* node) noexcept
+{
+    if (node == nullptr)
+    {
+        return;
+    }
+
+    if (node -> left_type_ == Link_Type::Child)
+    {
+        destroy_subtree(node -> left_);
+    }
+
+    if (node -> right_type_ == Link_Type::Child)
+    {
+        destroy_subtree(node -> right_);
+    }
+
+    delete node;
+}
+
+template <typename Type_Val, typename Compare>
+typename AVL_Tree<Type_Val, Compare>::Node* AVL_Tree<Type_Val, Compare>::copy_subtree(
+    const Node* source,
+    Node* parent,
+    Node* previous,
+    Node* next)
+{
+    if (source == nullptr)
+    {
+        return nullptr;
+    }
+
+    Node* node = new Node(Type_Val(source -> value_));
+
+    node -> parent_ = parent;
+    node -> height_ = source -> height_;
+    node -> subtree_size_ = source -> subtree_size_;
+
+    node -> left_ = previous;
+    node -> right_ = next;
+
+    try
+    {
+        if (source -> left_type_ == Link_Type::Child)
+        {
+            node -> left_ = copy_subtree(source -> left_, node, previous, node);
+
+            node -> left_type_ = Link_Type::Child;
+        }
+
+        if (source -> right_type_ == Link_Type::Child)
+        {
+            node -> right_ = copy_subtree(source -> right_, node, node, next);
+
+            node -> right_type_ = Link_Type::Child;
+        }
+    }
+    catch (...)
+    {
+        destroy_subtree(node);
+        throw;
+    }
+
+    return node;
+}
+
+template <typename Type_Val, typename Compare> 
+AVL_Tree<Type_Val, Compare>::AVL_Tree(const AVL_Tree& other): AVL_Tree(other.comp_)
+{
+    root_ = copy_subtree(other.root_, nullptr, nullptr, nullptr);
+}
+
+template <typename Type_Val, typename Compare> 
+AVL_Tree<Type_Val, Compare>& AVL_Tree<Type_Val, Compare>::operator=(const AVL_Tree& other) //O(M+N)
+{
+    if (this == &other)
+    {
+        return *this;
+    }
+
+    AVL_Tree copy(other);
+    std::swap(root_, copy.root_);
+
+    return *this;
+}
+
+template <typename Type_Val, typename Compare> 
+AVL_Tree<Type_Val, Compare>::AVL_Tree(AVL_Tree&& other): AVL_Tree(other.comp_)
+{
+    root_ = std::exchange(other.root_, nullptr);
+}
+
+template <typename Type_Val, typename Compare> 
+AVL_Tree<Type_Val, Compare>& AVL_Tree<Type_Val, Compare>::operator=(AVL_Tree&& other)
+{
+    if (this == &other)
+    {
+        return *this;
+    }
+
+    destroy_subtree(root_);
+    root_ = std::exchange(other.root_, nullptr);
+
+    return *this;
 }
 
 } //search_tools

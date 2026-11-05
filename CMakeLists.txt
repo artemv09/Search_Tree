@@ -11,6 +11,9 @@ option(SEARCH_TREE_BUILD_APPS
 option(SEARCH_TREE_BUILD_BENCHMARKS
     "Build research program" OFF)
 
+option(SEARCH_TREE_BUILD_MIXED_BENCHMARKS
+    "Build mixed workloads with Google Benchmark" OFF)
+
 include(CTest)
 
 add_library(search_tree_containers INTERFACE)
@@ -78,4 +81,59 @@ if(SEARCH_TREE_BUILD_BENCHMARKS)
     )
     target_link_libraries(search_tree_bench PRIVATE search_tree_containers)
     
+endif()
+
+if(SEARCH_TREE_BUILD_MIXED_BENCHMARKS)
+    include(FetchContent)
+
+    if(POLICY CMP0135)
+        cmake_policy(SET CMP0135 NEW)
+    endif()
+
+    set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
+    set(BENCHMARK_ENABLE_GTEST_TESTS OFF CACHE BOOL "" FORCE)
+    set(BENCHMARK_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
+
+    FetchContent_Declare(googlebenchmark
+        URL https://github.com/google/benchmark/archive/refs/tags/v1.9.1.tar.gz
+    )
+    FetchContent_MakeAvailable(googlebenchmark)
+
+    add_executable(benchmark_mixed benchmarks/benchmark_mixed.cpp)
+    target_link_libraries(benchmark_mixed PRIVATE
+        search_tree_containers benchmark::benchmark_main
+    )
+endif()
+
+option(SEARCH_TREE_ENABLE_IWYU
+    "Check includes with IWYU" OFF)
+
+if(SEARCH_TREE_ENABLE_IWYU)
+    find_program(IWYU_EXECUTABLE NAMES include-what-you-use)
+
+    if(NOT IWYU_EXECUTABLE)
+        message(FATAL_ERROR "IWYU not found. Install the iwyu package.")
+    endif()
+
+    foreach(target IN ITEMS
+        search_tree_input
+        search_set
+        search_vector
+        search_avl
+        search_btree
+        search_tree_tests
+        search_tree_bench
+        benchmark_mixed
+    )
+        if(TARGET ${target})
+            set_property(TARGET ${target}
+                PROPERTY CXX_INCLUDE_WHAT_YOU_USE
+                "${IWYU_EXECUTABLE}"
+                "-Xiwyu"
+                "--check_also=${CMAKE_CURRENT_SOURCE_DIR}/include/*"
+                "-Xiwyu"
+                "--check_also=${CMAKE_CURRENT_SOURCE_DIR}/graphiviz/*"
+            )
+        endif()
+    endforeach()
 endif()

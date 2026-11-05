@@ -1,22 +1,15 @@
 #ifndef B_TREE_
 #define B_TREE_
 
-#include <iostream>
+#include <ostream>
 #include <vector>
-#include <string>
-#include <list>
-#include <unordered_map>
-#include <iterator>
 #include <cstddef>
 #include <functional>
 #include <algorithm>
 #include <optional>
-#include <limits>
-#include <cassert>
 #include <memory>
 #include <stdexcept>
 #include <utility>
-#include <filesystem>
 
 #include "input.hpp"
 #include "tree_graphviz.hpp"
@@ -85,6 +78,13 @@ class B_Tree
 
         ~B_Tree() = default;
 
+        B_Tree(const B_Tree& other);            
+        B_Tree& operator=(const B_Tree& other); 
+
+        B_Tree(B_Tree&& other);                 
+        B_Tree& operator=(B_Tree&& other);    
+
+
         [[nodiscard]] bool execution_command(const input::Parsed_Command& command, std::ostream& results);
 
         void insert(Type_Val val);
@@ -94,6 +94,8 @@ class B_Tree
         [[nodiscard]] std::optional<Type_Val> select(std::size_t i) const;
 
         [[nodiscard]] std::size_t count_less(const Type_Val& x) const;
+
+        std::unique_ptr<Node> copy_subtree(const Node* source, Node* parent);
 
         void draw() const
         {
@@ -384,6 +386,71 @@ std::size_t B_Tree<Type_Val, Compare>::count_less_equal(Type_Val x) const
     count_min_ell += static_cast<std::size_t>(position - node -> value_.begin());
 
     return count_min_ell; //дошли до листа
+}
+
+template <typename Type_Val, typename Compare>
+std::unique_ptr<typename B_Tree<Type_Val, Compare>::Node>
+B_Tree<Type_Val, Compare>::copy_subtree(const Node* source, Node* parent)
+{
+    if (source == nullptr)
+    {
+        return nullptr;
+    }
+
+    auto node = std::make_unique<Node>(t);
+
+    node -> value_ = source -> value_;
+    node -> subtree_size_ = source -> subtree_size_;
+    node -> parent_ = parent;
+
+    for (const auto& child : source -> children_)
+    {
+        node -> children_.push_back(copy_subtree(child.get(), node.get()));
+    }
+
+    return node;
+}
+
+template <typename Type_Val, typename Compare>
+B_Tree<Type_Val, Compare>::B_Tree(const B_Tree& other): B_Tree(other.t, other.comp_)
+{
+    root_ = copy_subtree(other.root_.get(), nullptr);
+}
+
+template <typename Type_Val, typename Compare>
+B_Tree<Type_Val, Compare>& B_Tree<Type_Val, Compare>::operator=(const B_Tree& other)
+{
+    if (this == &other)
+    {
+        return *this;
+    }
+
+    B_Tree copy = other;
+    root_.swap(copy.root_);
+    std::swap(t, copy.t);
+    return *this;
+}
+
+template <typename Type_Val, typename Compare>
+B_Tree<Type_Val, Compare>::B_Tree(B_Tree&& other): B_Tree(other.t,  std::move(other.comp_))
+{
+    root_.swap(other.root_);
+    other.root_.reset();
+}
+
+template <typename Type_Val, typename Compare>
+B_Tree<Type_Val, Compare>& B_Tree<Type_Val, Compare>::operator=(B_Tree&& other)
+{
+    if (this == &other)
+    {
+        return *this;
+    }
+
+    root_.swap(other.root_);
+    other.root_.reset();
+    t = other.t;
+
+    return *this;
 }
 
 } //search_tools

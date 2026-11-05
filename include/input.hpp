@@ -2,9 +2,9 @@
 #define INPUT_
 
 #include <cstddef>
-#include <istream>
-#include <ostream>
+#include <iosfwd>
 #include <string>
+#include <string_view>
 
 namespace input {
 
@@ -45,9 +45,9 @@ void report_error(std::ostream& errors, std::size_t command_number, const char* 
 } //namespace detail
 
 [[nodiscard]] Read_Status read_command(std::istream& stream,
-                                             Parsed_Command& output,
-                                             std::ostream& errors,
-                                             std::size_t command_number) noexcept; //возвращаем output
+                                            Parsed_Command& output,
+                                            std::ostream& errors,
+                                            std::size_t command_number) noexcept; //возвращаем output
 
 } // namespace input
 

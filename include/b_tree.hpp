@@ -20,8 +20,6 @@ namespace search_tools {
 template <typename Type_Val, typename Compare = std::less<Type_Val>>
 class B_Tree
 {
-    friend struct B_Tree_Test_Access;
-
     private:
         struct Node
         {

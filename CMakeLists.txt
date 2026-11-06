@@ -101,7 +101,7 @@ if(SEARCH_TREE_BUILD_MIXED_BENCHMARKS)
 
     add_executable(benchmark_mixed benchmarks/benchmark_mixed.cpp)
     target_link_libraries(benchmark_mixed PRIVATE
-        search_tree_containers benchmark::benchmark_main
+        search_tree_containers benchmark::benchmark
     )
 endif()
 

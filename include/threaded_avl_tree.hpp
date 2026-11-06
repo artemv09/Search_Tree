@@ -19,8 +19,6 @@ namespace search_tools {
 template <typename Type_Val, typename Compare = std::less<Type_Val>>
 class AVL_Tree
 {
-    friend struct AVL_Test_Access;
-
     private:
 
         enum class Search_Status
